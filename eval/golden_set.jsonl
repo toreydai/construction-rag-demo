@@ -1,0 +1,20 @@
+{"id": "q01", "level": "L1", "question": "有没有类似深度15m以上、周边有地铁的基坑支护方案？", "expected": "A01_XX项目，基坑深约16m，临近地铁1号线，采用地下连续墙+内支撑体系", "in_scope": true, "target_files": ["A01"]}
+{"id": "q02", "level": "L1", "question": "有没有直径1200mm以上、入岩的桩基施工方案？", "expected": "A05_MM项目（φ1200旋挖+冲击入泥岩）和A06_NN项目（φ1200全套管+冲击入灰岩）均有", "in_scope": true, "target_files": ["A05", "A06"]}
+{"id": "q03", "level": "L1", "question": "之前有没有做过大体积混凝土夏季施工的项目？怎么控制温度的？", "expected": "A04_WW项目，夏季浇筑大体积混凝土，采用冰水拌合+养护覆盖+测温监控等措施", "in_scope": true, "target_files": ["A04"]}
+{"id": "q04", "level": "L1", "question": "高支模搭设完成后需要做什么试验才能浇筑混凝土？", "expected": "A03_ZZ项目，高支模搭设后需进行预压试验，验证沉降和变形满足要求后方可浇筑", "in_scope": true, "target_files": ["A03"]}
+{"id": "q05", "level": "L1", "question": "基坑深度超过10m时，监测频率应该是多少？", "expected": "B02_GB50497规定，开挖深度>10m时监测频率为2次/1d（每天2次）；5~10m为1次/1d；≤5m为1次/2d", "in_scope": true, "target_files": ["B02"]}
+{"id": "q06", "level": "L2", "question": "基坑深度18m，临近地铁，地连墙嵌固深度至少要多少？", "expected": "B01_JGJ120规范底线0.7H=12.6m；A01_XX项目实际0.73H；A07专家论证建议地铁侧加深至0.81H；综合建议按0.8H取值", "in_scope": true, "target_files": ["B01", "A01", "A07"]}
+{"id": "q07", "level": "L2", "question": "φ1200灌注桩入泥岩用旋挖钻能打下去吗？有没有实际案例？", "expected": "A05_MM项目采用旋挖+冲击组合工艺入泥岩可行；A08专家论证建议先用旋挖取芯再冲击扩孔；可行但须配合冲击钻", "in_scope": true, "target_files": ["A05", "A08"]}
+{"id": "q08", "level": "L2", "question": "800mm地连墙现在北京什么价格？我们报了3,500元/m²合理吗？", "expected": "C01市场参考800mm地连墙2,600~3,200元/m²；A01_XX项目实际2,850元/m²；报价3,500元/m²偏高约10~35%", "in_scope": true, "target_files": ["C01", "A01", "A02"]}
+{"id": "q09", "level": "L2", "question": "帮我总结一下之前基坑项目的降水方案都是怎么做的", "expected": "A01_XX项目28口降水井φ600；A11_RR项目分区降水；综合来看均采用管井降水，数量和布置因基坑规模而异", "in_scope": true, "target_files": ["A01", "A11"]}
+{"id": "q10", "level": "L2", "question": "地连墙灌注前泥浆密度应该控制在多少？", "expected": "A09_PP项目要求≤1.08g/cm³；A10_QQ项目要求1.15~1.25g/cm³；两个项目存在差异，取决于地层条件和混凝土强度要求", "in_scope": true, "target_files": ["A09", "A10"]}
+{"id": "q11", "level": "L3", "question": "嵌固深度做0.7H够不够？还是要做到0.8H？", "expected": "规范底线：B01_JGJ120临近地铁≥0.7H；实际案例：A01按0.73H，A10按1.04H；专家意见：A07建议0.8H；综合建议：临近地铁按0.8H，条件特殊时专项论证", "in_scope": true, "target_files": ["B01", "A01", "A07", "A10"]}
+{"id": "q12", "level": "L3", "question": "φ1200入泥岩旋挖能打下去吗？还是必须用冲击钻？", "expected": "A05_MM项目泥岩用旋挖+冲击组合；A08论证建议先旋挖后冲击；A06_NN项目灰岩（更硬）用全套管+冲击；结论：泥岩可用旋挖为主+冲击辅助，灰岩须全套管+冲击", "in_scope": true, "target_files": ["A05", "A06", "A08"]}
+{"id": "q13", "level": "L3", "question": "声波透射做到30%规范是满足了，但够不够？", "expected": "B03_JGJ94规范≥30%；A08_MM专家论证要求提升至100%；A12_SS项目实际执行100%；超长桩/复杂地质建议按100%执行，规范是底线而非最优", "in_scope": true, "target_files": ["B03", "A08", "A12"]}
+{"id": "q14", "level": "L3", "question": "14m基坑止水用高压旋喷够吗？还是必须三轴搅拌桩？", "expected": "两种方案均有案例：高压旋喷成本低但止水可靠性较差；三轴搅拌桩止水效果好但造价高约30~50%；临近地铁或高地下水位建议三轴，一般条件可用高压旋喷+加密布桩", "in_scope": true, "target_files": ["A01", "A11", "C01"]}
+{"id": "q15", "level": "L3", "question": "我的基坑16m深，选地连墙还是灌注桩好？有没有实际案例对比？", "expected": "A11_RR项目同一基坑分区采用地连墙和灌注桩+锚索两种方案；地连墙止水好、刚度大但造价高；灌注桩+锚索造价低但止水需另加止水帷幕；C01造价数据可对比", "in_scope": true, "target_files": ["A11", "C01"]}
+{"id": "oos01", "level": "OOS", "question": "钢结构厂房的施工方案怎么写？", "expected": "", "in_scope": false, "target_files": []}
+{"id": "oos02", "level": "OOS", "question": "幕墙工程的防水处理方法有哪些？", "expected": "", "in_scope": false, "target_files": []}
+{"id": "oos03", "level": "OOS", "question": "沥青混凝土路面摊铺的温度控制要求是什么？", "expected": "", "in_scope": false, "target_files": []}
+{"id": "oos04", "level": "OOS", "question": "消防管道安装的验收标准是什么？", "expected": "", "in_scope": false, "target_files": []}
+{"id": "oos05", "level": "OOS", "question": "铝合金门窗安装的注意事项有哪些？", "expected": "", "in_scope": false, "target_files": []}

@@ -1,0 +1,22 @@
+# 生成文件
+ingest/chunks.jsonl
+eval/eval-results.jsonl
+eval/eval-results.md
+eval/eval-score.md
+eval/tau-calibration.md
+
+# CDK
+infra/cdk.out/
+infra/cdk.context.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Claude Code
+CLAUDE.md
+
+# 临时文件
+/tmp/
+*.tar.gz
