@@ -8,12 +8,18 @@
 | OpenSearch Host | 部署后从 CDK 输出获取，设置为 `OPENSEARCH_HOST` 环境变量 |
 | CDK Stack | `RagInfraStack`（us-east-1）|
 
-## 环境变量
+## 服务配置
 
-```bash
-export OPENSEARCH_HOST=<CDK 输出的 OpenSearch endpoint>
-export AWS_DEFAULT_REGION=us-east-1
+生产环境由 systemd 服务 `construction-rag.service` 管理。服务单元位于
+`/etc/systemd/system/construction-rag.service`，其中必须配置以下环境变量：
+
+```ini
+Environment=OPENSEARCH_HOST=<CDK 输出的 OpenSearch endpoint，不含 https://>
+Environment=OPENSEARCH_PORT=443
+Environment=AWS_DEFAULT_REGION=us-east-1
 ```
+
+修改服务单元后，执行 `sudo systemctl daemon-reload && sudo systemctl restart construction-rag`。
 
 ---
 
@@ -38,27 +44,25 @@ aws ssm start-session --target <INSTANCE_ID> --region us-east-1
 
 ## Streamlit 管理
 
-### 启动
+### 安装 / 启动
 
 ```bash
-export OPENSEARCH_HOST=<OpenSearch endpoint>
-export AWS_DEFAULT_REGION=us-east-1
-cd /opt/rag-app
-nohup streamlit run app/main.py \
-  --server.port 8501 --server.address 0.0.0.0 \
-  --server.enableCORS false --server.enableXsrfProtection false \
-  > /tmp/streamlit.log 2>&1 &
+sudo systemctl enable --now construction-rag
 ```
 
-> `--enableCORS false --enableXsrfProtection false` 是 ALB 反向代理必须加的参数，否则 WebSocket 连接失败导致页面一直转圈。
+服务单元的 `ExecStart` 必须保留 `--server.enableCORS false` 和
+`--server.enableXsrfProtection false`，否则 ALB 反向代理的 WebSocket 可能无法建立。
 
 ### 状态 / 重启
 
 ```bash
-curl -s http://localhost:8501/_stcore/health  # 200 = 正常
-tail -20 /tmp/streamlit.log
-pkill -f streamlit                            # 停止
+sudo systemctl status construction-rag
+sudo systemctl restart construction-rag
+sudo journalctl -u construction-rag -f
+curl -fsS http://localhost:8501/_stcore/health  # 输出 ok = 正常
 ```
+
+服务已设置为开机自启，并在非正常退出后 5 秒自动重启。
 
 ---
 
@@ -73,9 +77,9 @@ aws ssm send-command \
   --region us-east-1 \
   --parameters '{"commands":[
     "sed -i \"s/TAU_ABS  = 0.1/TAU_ABS  = 0.2/\" /opt/rag-app/config.py",
-    "pkill -f streamlit || true",
-    "sleep 2",
-    "export OPENSEARCH_HOST=<OpenSearch endpoint> && export AWS_DEFAULT_REGION=us-east-1 && cd /opt/rag-app && nohup streamlit run app/main.py --server.port 8501 --server.address 0.0.0.0 --server.enableCORS false --server.enableXsrfProtection false > /tmp/streamlit.log 2>&1 &"
+    "sudo systemctl restart construction-rag",
+    "sudo systemctl is-active --quiet construction-rag",
+    "curl -fsS http://localhost:8501/_stcore/health"
   ]}'
 ```
 
@@ -128,4 +132,4 @@ python3 eval/calibrate_tau.py # 重新标定阈值，更新 config.py
 
 **BM25 召回全部 0 分** — 索引建立时 smartcn 未生效，执行全量重建。
 
-**OpenSearch 连接失败** — 检查 `echo $OPENSEARCH_HOST` 是否已设置。
+**OpenSearch 连接失败** — 检查 `sudo systemctl show construction-rag -p Environment`；确认 `OPENSEARCH_HOST` 为 CDK 输出的域名（不含 `https://`），然后执行 `sudo systemctl restart construction-rag`。
