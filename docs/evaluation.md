@@ -2,7 +2,7 @@
 
 ## 当前评测结果
 
-> 2026-06-22，`construction-rag` 域（RagInfraStack），Amazon Rerank v1（us-west-2），19 份模拟文件 82 chunks。
+> 2026-06-22，`construction-rag` 域（RagInfraStack），Amazon Rerank v1（us-west-2），19 份模拟文件 80 chunks。
 
 | 类别 | 题数 | 均分（LLM-as-judge 0-10）|
 |------|------|--------------------------|

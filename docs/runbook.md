@@ -89,7 +89,7 @@ aws ssm send-command \
 
 ```bash
 # 建索引（首次 or 数据更新后）
-python3 ingest/chunk.py   # 差异化分块 → 82 chunks
+python3 ingest/chunk.py   # 差异化分块 → 80 chunks
 python3 ingest/index.py   # 向量化 + 写入 OpenSearch（约 5 分钟）
 
 # 全量重建
@@ -108,7 +108,7 @@ python3 ingest/chunk.py && python3 ingest/index.py
 ## 知识库更新
 
 ```
-upload/
+sampledata/
 ├── 历史方案/     ← PDF / DOCX
 ├── 现行规范/     ← PDF / DOCX
 └── 商务数据/     ← TXT（xlsx 需先运行 python3 scripts/convert_xlsx.py）
@@ -117,6 +117,7 @@ upload/
 新文件放入对应目录后：
 
 ```bash
+python3 scripts/convert_xlsx.py  # 商务数据有 xlsx 时必须先运行
 python3 ingest/chunk.py && python3 ingest/index.py
 python3 eval/eval.py          # 评测
 python3 eval/calibrate_tau.py # 重新标定阈值，更新 config.py

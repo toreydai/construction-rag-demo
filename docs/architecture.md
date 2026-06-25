@@ -31,7 +31,6 @@
                           │ 应用层 RRF 融合 → top-10             │
                           │ → Bedrock Rerank 精排（us-west-2）   │
                           │   Amazon Rerank v1                  │
-                          │   → Cohere Rerank v3.5              │
                           │   → RRF fallback                    │
                           │ → 矛盾信号检测（rerank gap 分析）      │
                           └─────────────────────────────────────┘
@@ -54,7 +53,7 @@
 | 向量 + 词法库 | Amazon OpenSearch（kNN + smartcn BM25）| 双索引共存，融合逻辑可见可调 |
 | Embedding | Bedrock Titan Text Embeddings v2（1024 维）| 零运维，中文技术文本效果稳定 |
 | 融合 | 应用层 RRF（k=60）| 分数尺度无关 |
-| Rerank | Amazon Rerank v1（us-west-2）→ Cohere → RRF fallback | amazon.rerank-v1:0 仅在 us-west-2/ap-northeast-1 上线，跨区调用 |
+| Rerank | Amazon Rerank v1（us-west-2）→ RRF fallback | amazon.rerank-v1:0 仅在 us-west-2/ap-northeast-1 上线，跨区调用 |
 | 矛盾检测 | rerank gap 分析 | gap 小 = 多来源分歧，触发对比分析 |
 | 生成 LLM | Kimi K2.5（moonshotai.kimi-k2.5）| OpenAI 兼容格式，支持流式，max_tokens=4096 |
 | 多轮对话 | 应用层 query 改写（Kimi 短调用）| 追问词/短句改写为独立完整问题 |
@@ -65,7 +64,7 @@
 
 | 资源 | 规格 | 说明 |
 |------|------|------|
-| OpenSearch | t3.medium.search，30GB GP3，2.9 | 索引 `construction-rag`，82 chunks |
+| OpenSearch | t3.medium.search，30GB GP3，2.9 | 索引 `construction-rag`，80 chunks |
 | EC2 | t3.small，Amazon Linux 2023 | 运行 Streamlit，无 UserData，SSM 管理 |
 | ALB | internet-facing，port 80→EC2:8501 | 公网访问入口 |
 | IAM Role | SSM + Bedrock + OpenSearch + S3ReadOnly | EC2 实例角色 |
@@ -116,8 +115,7 @@ Amazon Rerank v1 (us-west-2)
   │         ├── top1 < TAU_ABS  → 拒答
   │         ├── gap < TAU_GAP   → 矛盾分析模式
   │         └── 正常            → 生成
-  └── 失败 → Cohere Rerank v3.5
-               └── 失败 → RRF fallback + BM25_FALLBACK_FLOOR 拒答
+  └── 失败 → RRF fallback + BM25_FALLBACK_FLOOR 拒答
 ```
 
 > `amazon.rerank-v1:0` 在 us-east-1 未上线，`retrieval/rerank.py` 为其单独创建 us-west-2 client。
@@ -168,6 +166,12 @@ Amazon Rerank v1 (us-west-2)
 ```
 rag-app/
 ├── config.py              全局配置
+├── sampledata/            示例数据（19 份模拟施工资料）
+│   ├── 历史方案/           A01–A12（PDF / DOCX）
+│   ├── 现行规范/           B01–B04（PDF / DOCX）
+│   └── 商务数据/           C01–C03（xlsx 原文件 + 转换后 txt）
+├── scripts/
+│   └── convert_xlsx.py    商务数据 xlsx → txt 转换工具
 ├── ingest/
 │   ├── chunk.py           差异化分块，输出 chunks.jsonl
 │   └── index.py           向量化 + 写入 OpenSearch（幂等 upsert）
@@ -186,10 +190,11 @@ rag-app/
 │   ├── app.py             CDK 入口（RagInfraStack）
 │   └── cdk.json           CDK 配置
 └── docs/
+    ├── step-by-step.md    面向非技术读者的搭建操作手册
     ├── architecture.md    本文档（架构 + 配置）
     ├── runbook.md         部署 + 运维 + 数据接入
     ├── evaluation.md      评测结果与调优
-    └── test-log.md        测试执行记录
+    └── lab-guide.md       客户操作实验手册
 ```
 
 ## 已知限制
@@ -197,7 +202,6 @@ rag-app/
 | 限制 | 状态 | 说明 |
 |------|------|------|
 | Amazon Rerank 跨区调用 | ✅ 已解决 | 固定使用 us-west-2，延迟增加约 50ms |
-| Cohere Rerank | ⚠️ Geo 限制 | Marketplace 订阅当前地区不可用，保留为级联备选 |
 | 知识库为模拟数据 | 已知 | 19 份模拟文件；接入真实方案库后重新评测 |
 | DOCX 表格解析 | 有限 | python-docx 提取表格为文本行，行列语义依赖文本顺序 |
 | Python 版本 | EC2 为 3.9 | 代码需保留 `from __future__ import annotations` |
