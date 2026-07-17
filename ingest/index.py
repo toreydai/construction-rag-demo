@@ -46,9 +46,9 @@ INDEX_BODY = {
 
 
 def get_clients():
-    creds = boto3.Session().get_credentials().get_frozen_credentials()
-    auth = AWS4Auth(creds.access_key, creds.secret_key,
-                    config.AWS_REGION, "es", session_token=creds.token)
+    credentials = boto3.Session().get_credentials()
+    auth = AWS4Auth(region=config.AWS_REGION, service="es",
+                    refreshable_credentials=credentials)
     os_client = OpenSearch(
         hosts=[{"host": config.OPENSEARCH_HOST, "port": config.OPENSEARCH_PORT}],
         http_auth=auth,

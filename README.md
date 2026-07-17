@@ -25,7 +25,7 @@
 ## 技术栈
 
 - **检索**：Amazon OpenSearch（向量 kNN + smartcn BM25 + 应用层 RRF）
-- **精排**：Amazon Rerank v1（us-west-2）→ Cohere Rerank v3.5 → RRF fallback
+- **精排**：Amazon Rerank v1（us-west-2）→ RRF fallback
 - **生成**：Kimi K2.5（`moonshotai.kimi-k2.5`，Bedrock，流式，max_tokens=4096）
 - **Embedding**：Titan Text Embeddings v2（1024 维）
 - **前端**：Streamlit，ALB 公网访问
@@ -53,6 +53,7 @@ cd rag-app
 pip3 install -r requirements.txt
 
 # 建索引（首次 or 数据更新后）
+python3 scripts/convert_xlsx.py  # 商务数据 xlsx → txt（首次必须）
 python3 ingest/chunk.py
 python3 ingest/index.py
 
@@ -74,14 +75,15 @@ python3 eval/calibrate_tau.py # 拒答阈值标定
 
 | 文件 | 内容 |
 |------|------|
+| [docs/step-by-step.md](docs/step-by-step.md) | 面向非技术读者的搭建操作手册（7 步）|
 | [docs/lab-guide.md](docs/lab-guide.md) | 客户操作实验手册（6 个实验）|
 | [docs/architecture.md](docs/architecture.md) | 架构设计 + 基础设施 + 配置参数 |
-| [docs/runbook.md](docs/runbook.md) | 部署 + 运维 + 数据接入 |
+| [docs/deployment.md](docs/deployment.md) | 部署 + 运维 + 数据接入 |
 | [docs/evaluation.md](docs/evaluation.md) | 评测结果 + 逐题得分 + 调优历史 |
 
 ## License
 
-MIT
+MIT - see the [LICENSE](LICENSE) file for details.
 
 ## 免责声明
 

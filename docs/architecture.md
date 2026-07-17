@@ -1,40 +1,59 @@
-# 架构与配置
+# 架构文档
 
-> 版本 v1.2 | 2026-06-22
+> 建筑工程施工方案 RAG 助手 · 架构与配置 · 版本 v1.2 | 2026-06-22
 > 基于 [airline-ticketing-rag-assistant](https://github.com/toreydai/airline-ticketing-rag-assistant) 检索管线改造，替换知识域为建筑工程施工方案。
 
 ## 目标
 
 施工企业总工、技术员、商务人员输入方案编制问题 → **混合检索**（向量 + 中文 BM25 + RRF + Rerank 级联）召回最相关施工方案片段 → **Kimi K2.5** 流式生成带引用来源的答案；多来源存在分歧时触发**矛盾分析模式**，置信度不足时**主动拒答**。
 
+## 组件
+
+- **Streamlit 前端**：EC2 t3.small，ALB（internet-facing，port 80→8501）公网访问入口
+- **Amazon OpenSearch**：t3.medium.search，向量 kNN 索引 + 中文 smartcn BM25 索引双索引共存
+- **Bedrock Titan Text Embeddings v2**：查询与文档向量化（1024 维）
+- **Amazon Rerank v1**（us-west-2 专用 client）：精排，失败时 RRF fallback
+- **Kimi K2.5**（`moonshotai.kimi-k2.5`，Bedrock）：流式生成带引用来源的答案，OpenAI 兼容格式
+- **AWS CDK（Python）**：`RagInfraStack` 声明式部署 OpenSearch + EC2 + ALB + IAM Role
+
 ## 架构图
 
-```
-                 ┌──────────────────────────────────────────────────────┐
-                 │  Streamlit 前端（EC2 t3.small → ALB port 80）          │
-                 │  · 快捷问题面板（L1/L2/L3）+ 随机抽题 + 对话导出        │
-                 │  · 文档类型筛选 / Rerank 开关 / TOP_M 滑块             │
-                 │  · 检索管线可视化（向量/BM25/RRF/Rerank 4 tab）         │
-                 │  · 矛盾双列高亮 + 置信度进度条 + 引用来源面板            │
-                 └─────────────────────┬────────────────────────────────┘
-                                       │ boto3
-        ┌──────────────────────────────┼─────────────────────────────────┐
-        ▼                              ▼                                 ▼
-┌───────────────┐            ┌──────────────────┐             ┌──────────────────┐
-│ Bedrock        │            │ Amazon OpenSearch │             │ Bedrock           │
-│ Titan Embed v2 │─ 查询向量 ─▶│  向量 kNN 索引    │             │ Kimi K2.5         │
-│ (向量化)       │            │  + 中文 BM25 索引  │             │ (流式生成+矛盾分析) │
-└───────────────┘            └────────┬─────────┘             └──────────────────┘
-                                      │ 两路各 top-20
-                                      ▼
-                          ┌─────────────────────────────────────┐
-                          │ 应用层 RRF 融合 → top-10             │
-                          │ → Bedrock Rerank 精排（us-west-2）   │
-                          │   Amazon Rerank v1                  │
-                          │   → Cohere Rerank v3.5              │
-                          │   → RRF fallback                    │
-                          │ → 矛盾信号检测（rerank gap 分析）      │
-                          └─────────────────────────────────────┘
+```mermaid
+flowchart TB
+  User["用户\n总工 / 技术员 / 商务"]
+
+  subgraph EC2["EC2 t3.small"]
+    ST["Streamlit 前端\n快捷问题面板 · 文档类型筛选\nRerank 开关 · TOP_M 滑块\n检索管线可视化 · 矛盾高亮"]
+  end
+
+  ALB["ALB\ninternet-facing :80 → EC2:8501"]
+
+  subgraph Bedrock["Amazon Bedrock"]
+    Titan["Titan Text Embeddings v2\n查询向量化 1024维"]
+    Kimi["Kimi K2.5\nmoonshotai.kimi-k2.5\n流式生成 + 矛盾分析"]
+    Rerank["Amazon Rerank v1\n(us-west-2)"]
+  end
+
+  subgraph OS["Amazon OpenSearch"]
+    Vec["向量 kNN 索引"]
+    BM25["中文 BM25 (smartcn) 索引"]
+  end
+
+  RRF["应用层 RRF 融合\n(retrieval/fusion.py)"]
+
+  User -->|HTTP| ALB
+  ALB --> ST
+  ST -->|boto3| Titan
+  Titan -->|查询向量| Vec
+  ST -->|boto3| BM25
+  Vec -->|top-20| RRF
+  BM25 -->|top-20| RRF
+  RRF -->|top-10| Rerank
+  Rerank -.失败 fallback.-> RRF
+  Rerank -->|top-8 + 矛盾信号| ST
+  ST -->|System Prompt + top-8 片段| Kimi
+  Kimi -->|流式回答 + 来源标注| ST
+  ST -->|渲染| User
 ```
 
 **在线数据流：**
@@ -47,6 +66,50 @@
 6. top-8 片段 + System Prompt → Kimi K2.5 **流式生成**，每条结论带【文件名】来源标注
 7. Rerank top1 低于 `TAU_ABS` → **拒答**，不生成内容
 
+## 请求路径图
+
+```mermaid
+sequenceDiagram
+  participant U as 用户
+  participant ST as Streamlit 前端
+  participant TI as Titan Embed v2
+  participant OS as OpenSearch (kNN + BM25)
+  participant RR as RRF 融合
+  participant RK as Amazon Rerank v1
+  participant KM as Kimi K2.5
+
+  U->>ST: 输入方案编制问题
+  ST->>ST: 追问词检测，必要时用 Kimi 改写为独立问题
+  ST->>TI: 查询向量化
+  TI-->>ST: 1024 维向量
+  par 向量召回
+    ST->>OS: kNN 检索 top-20
+  and BM25 召回
+    ST->>OS: 中文 BM25 检索 top-20
+  end
+  OS-->>ST: 两路候选片段
+  ST->>RR: RRF 融合 (k=60)
+  RR-->>ST: top-10
+  ST->>RK: Rerank 精排 (us-west-2)
+  alt Rerank 成功
+    RK-->>ST: top-8 + rerank score
+    ST->>ST: 检测 top1/top2 score gap
+    alt gap 小于 TAU_GAP
+      ST->>ST: 切换矛盾分析模式
+    end
+    alt top1 低于 TAU_ABS
+      ST-->>U: 主动拒答
+    else 置信度足够
+      ST->>KM: top-8 片段 + System Prompt
+      KM-->>ST: 流式生成回答（含来源标注）
+      ST-->>U: 渲染答案 + 引用来源 + 置信度
+    end
+  else Rerank 失败
+    ST->>ST: RRF fallback + BM25_FALLBACK_FLOOR 判定
+    ST-->>U: 拒答或生成（视 fallback 阈值）
+  end
+```
+
 ## 技术选型
 
 | 组件 | 选型 | 说明 |
@@ -54,7 +117,7 @@
 | 向量 + 词法库 | Amazon OpenSearch（kNN + smartcn BM25）| 双索引共存，融合逻辑可见可调 |
 | Embedding | Bedrock Titan Text Embeddings v2（1024 维）| 零运维，中文技术文本效果稳定 |
 | 融合 | 应用层 RRF（k=60）| 分数尺度无关 |
-| Rerank | Amazon Rerank v1（us-west-2）→ Cohere → RRF fallback | amazon.rerank-v1:0 仅在 us-west-2/ap-northeast-1 上线，跨区调用 |
+| Rerank | Amazon Rerank v1（us-west-2）→ RRF fallback | amazon.rerank-v1:0 仅在 us-west-2/ap-northeast-1 上线，跨区调用 |
 | 矛盾检测 | rerank gap 分析 | gap 小 = 多来源分歧，触发对比分析 |
 | 生成 LLM | Kimi K2.5（moonshotai.kimi-k2.5）| OpenAI 兼容格式，支持流式，max_tokens=4096 |
 | 多轮对话 | 应用层 query 改写（Kimi 短调用）| 追问词/短句改写为独立完整问题 |
@@ -65,7 +128,7 @@
 
 | 资源 | 规格 | 说明 |
 |------|------|------|
-| OpenSearch | t3.medium.search，30GB GP3，2.9 | 索引 `construction-rag`，82 chunks |
+| OpenSearch | t3.medium.search，30GB GP3，2.9 | 索引 `construction-rag`，80 chunks |
 | EC2 | t3.small，Amazon Linux 2023 | 运行 Streamlit，无 UserData，SSM 管理 |
 | ALB | internet-facing，port 80→EC2:8501 | 公网访问入口 |
 | IAM Role | SSM + Bedrock + OpenSearch + S3ReadOnly | EC2 实例角色 |
@@ -116,8 +179,7 @@ Amazon Rerank v1 (us-west-2)
   │         ├── top1 < TAU_ABS  → 拒答
   │         ├── gap < TAU_GAP   → 矛盾分析模式
   │         └── 正常            → 生成
-  └── 失败 → Cohere Rerank v3.5
-               └── 失败 → RRF fallback + BM25_FALLBACK_FLOOR 拒答
+  └── 失败 → RRF fallback + BM25_FALLBACK_FLOOR 拒答
 ```
 
 > `amazon.rerank-v1:0` 在 us-east-1 未上线，`retrieval/rerank.py` 为其单独创建 us-west-2 client。
@@ -168,6 +230,12 @@ Amazon Rerank v1 (us-west-2)
 ```
 rag-app/
 ├── config.py              全局配置
+├── sampledata/            示例数据（19 份模拟施工资料）
+│   ├── 历史方案/           A01–A12（PDF / DOCX）
+│   ├── 现行规范/           B01–B04（PDF / DOCX）
+│   └── 商务数据/           C01–C03（xlsx 原文件 + 转换后 txt）
+├── scripts/
+│   └── convert_xlsx.py    商务数据 xlsx → txt 转换工具
 ├── ingest/
 │   ├── chunk.py           差异化分块，输出 chunks.jsonl
 │   └── index.py           向量化 + 写入 OpenSearch（幂等 upsert）
@@ -186,10 +254,11 @@ rag-app/
 │   ├── app.py             CDK 入口（RagInfraStack）
 │   └── cdk.json           CDK 配置
 └── docs/
+    ├── step-by-step.md    面向非技术读者的搭建操作手册
     ├── architecture.md    本文档（架构 + 配置）
-    ├── runbook.md         部署 + 运维 + 数据接入
+    ├── deployment.md         部署 + 运维 + 数据接入
     ├── evaluation.md      评测结果与调优
-    └── test-log.md        测试执行记录
+    └── lab-guide.md       客户操作实验手册
 ```
 
 ## 已知限制
@@ -197,7 +266,6 @@ rag-app/
 | 限制 | 状态 | 说明 |
 |------|------|------|
 | Amazon Rerank 跨区调用 | ✅ 已解决 | 固定使用 us-west-2，延迟增加约 50ms |
-| Cohere Rerank | ⚠️ Geo 限制 | Marketplace 订阅当前地区不可用，保留为级联备选 |
 | 知识库为模拟数据 | 已知 | 19 份模拟文件；接入真实方案库后重新评测 |
 | DOCX 表格解析 | 有限 | python-docx 提取表格为文本行，行列语义依赖文本顺序 |
 | Python 版本 | EC2 为 3.9 | 代码需保留 `from __future__ import annotations` |

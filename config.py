@@ -5,7 +5,7 @@ OPENSEARCH_PORT  = int(os.environ.get("OPENSEARCH_PORT", "443"))
 OPENSEARCH_INDEX = "construction-rag"
 AWS_REGION       = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
 
-UPLOAD_DIR       = os.environ.get("UPLOAD_DIR", "../upload")
+UPLOAD_DIR       = os.environ.get("UPLOAD_DIR", "sampledata")
 
 EMBEDDING_MODEL  = "amazon.titan-embed-text-v2:0"
 EMBEDDING_DIM    = 1024

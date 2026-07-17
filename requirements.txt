@@ -3,4 +3,5 @@ opensearch-py>=2.4
 requests-aws4auth>=1.2
 pypdf>=4.0
 python-docx>=1.1
+openpyxl>=3.1
 streamlit>=1.35
